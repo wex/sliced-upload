@@ -172,7 +172,7 @@ export default class SlicedUpload extends EventTarget {
 
                 const formData = new FormData();
 
-                formData.append('chunked_upload', this.fileHash!);
+                formData.append('sliced_upload', this.fileHash!);
                 formData.append('chunk', this.chunks[index]);
                 formData.append('index', index.toString());
 
@@ -234,7 +234,7 @@ export default class SlicedUpload extends EventTarget {
 
                 const formData = new FormData();
 
-                formData.append('chunked_upload', this.fileHash!);
+                formData.append('sliced_upload', this.fileHash!);
                 formData.append('filename', this.file!.name);
                 formData.append('filesize', this.file!.size.toString());
                 formData.append('filetype', this.file!.type);
