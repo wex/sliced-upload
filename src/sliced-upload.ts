@@ -70,6 +70,11 @@ export default class SlicedUpload extends EventTarget {
     private fileHash?: string;
 
     /**
+     * Nonce
+     */
+    private nonce?: string;
+
+    /**
      * Constructor
      */
     constructor(
@@ -125,15 +130,31 @@ export default class SlicedUpload extends EventTarget {
 
                 }
 
-                xhr.addEventListener('load', () => {
+                xhr.addEventListener('readystatechange', () => {
 
-                    if (xhr.status !== 200) {
+                    if (xhr.readyState === XMLHttpRequest.DONE) {
 
-                        return reject(new Error(`HTTP Error: ${xhr.status} ${xhr.statusText}`));
+                        if (xhr.status !== 200) {
+
+                            return reject(new Error(`HTTP Error: ${xhr.status} ${xhr.statusText}`));
+
+                        }
+
+                        try {
+
+                            const response = JSON.parse(xhr.responseText);
+                            console.log(response);
+                            this.nonce = response.nonce;
+
+                        } catch (e) {
+
+                            return reject(e);
+
+                        }
+
+                        return resolve();
 
                     }
-
-                    return resolve();
 
                 });
 
@@ -175,6 +196,7 @@ export default class SlicedUpload extends EventTarget {
                 formData.append('sliced_upload', this.fileHash!);
                 formData.append('chunk', this.chunks[index]);
                 formData.append('index', index.toString());
+                formData.append('nonce', this.nonce!);
 
                 for (const key in params) {
                     formData.append(key, params[key]);
@@ -208,15 +230,32 @@ export default class SlicedUpload extends EventTarget {
 
                 }
 
-                xhr.addEventListener('load', () => {
+                xhr.addEventListener('readystatechange', () => {
 
-                    if (xhr.status !== 200) {
+                    if (xhr.readyState === XMLHttpRequest.DONE) {
 
-                        return reject(new Error(`HTTP Error: ${xhr.status} ${xhr.statusText}`));
+                        if (xhr.status !== 200) {
+
+                            return reject(new Error(`HTTP Error: ${xhr.status} ${xhr.statusText}`));
+
+                        }
+
+                        try {
+
+                            const response = JSON.parse(xhr.responseText);
+                            console.log(response);
+                            this.nonce = response.nonce;
+                            this.fileHash = response.uuid;
+
+                        } catch (e) {
+
+                            return reject(e);
+
+                        }
+
+                        return resolve();
 
                     }
-
-                    return resolve();
 
                 });
 
