@@ -172,10 +172,9 @@ export default class SlicedUpload extends EventTarget {
 
                 const formData = new FormData();
 
-                formData.append('is_chunked_upload', this.fileHash!);
-                formData.append('file', this.chunks[index]);
-                formData.append('chunk', index.toString());
-                formData.append('total_chunks', this.chunks.length.toString());
+                formData.append('chunked_upload', this.fileHash!);
+                formData.append('chunk', this.chunks[index]);
+                formData.append('index', index.toString());
 
                 for (const key in params) {
                     formData.append(key, params[key]);
@@ -236,10 +235,10 @@ export default class SlicedUpload extends EventTarget {
                 const formData = new FormData();
 
                 formData.append('chunked_upload', this.fileHash!);
-                formData.append('file_name', this.file!.name);
-                formData.append('file_size', this.file!.size.toString());
-                formData.append('file_type', this.file!.type);
-                formData.append('total_chunks', this.chunks.length.toString());
+                formData.append('filename', this.file!.name);
+                formData.append('filesize', this.file!.size.toString());
+                formData.append('filetype', this.file!.type);
+                formData.append('chunks', this.chunks.length.toString());
 
                 for (const key in params) {
                     formData.append(key, params[key]);
@@ -265,6 +264,13 @@ export default class SlicedUpload extends EventTarget {
         return new Promise(async (resolve, reject) => {
 
             try {
+
+                // Verify file
+                if (!this.file || this.file.size === 0) {
+
+                    throw new Error('Invalid file');
+
+                }
 
                 // Get SHA-256 hash of the file
                 this.fileHash = await this._getFileHash(this.file!);
