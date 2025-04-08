@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + TS</title>
+    <script src="dist/sliced-upload.umd.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <label>
+        Select file
+        <input type="file" id="upload" />
+      </label>
+      <div id="progress"></div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelector('#upload').addEventListener('change', (e) => {
+                const slicedUpload = new SlicedUpload(e.target.files[0]);
+                slicedUpload.addEventListener('upload', (e) => {
+                    document.querySelector('#progress').innerHTML = `${e.detail.progress}%`;
+                });
+                slicedUpload.upload('http://localhost/sliced-upload/test.php').then(() => {
+                    console.log('Uploaded');
+                }).catch((e) => {
+                    console.error(e);
+                });
+            });
+        });
+    </script>
+  </body>
+</html>

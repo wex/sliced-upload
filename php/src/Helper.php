@@ -7,10 +7,7 @@ abstract class Helper
     public static function ok(array $response = [])
     {
         http_response_code(200);
-
-        if (count($response)) {
-            echo json_encode($response);
-        }
+        echo json_encode($response);
 
         exit(0);
     }
