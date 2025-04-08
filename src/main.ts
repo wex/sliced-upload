@@ -1,4 +1,4 @@
-import SlicedUpload, { SlicedUploadEventDetail } from "./sliced-upload.ts";
+import SlicedUpload from "./sliced-upload.ts";
 
 document.querySelector<HTMLDivElement>('#upload')!.addEventListener('change', (e) => {
     const file = (e.target as HTMLInputElement).files?.[0];
@@ -6,14 +6,15 @@ document.querySelector<HTMLDivElement>('#upload')!.addEventListener('change', (e
 
     const slicedUpload = new SlicedUpload(file);
 
-    slicedUpload.addEventListener("upload", (e) => {
-      document.querySelector<HTMLDivElement>('#progress')!.innerHTML = `${(e as CustomEvent<SlicedUploadEventDetail>).detail.progress}%`;
+    slicedUpload.on("upload", (e) => {
+      document.querySelector<HTMLDivElement>('#progress')!.innerHTML = `${e.detail.progress}%`;
     });
 
-    slicedUpload.addEventListener('ready', (e) => {
+    slicedUpload.on('done', (e) => {
       console.log(e);
     });
-    slicedUpload.addEventListener('error', (e) => {
+
+    slicedUpload.on('error', (e) => {
       console.error(e);
     });
 

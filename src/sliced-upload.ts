@@ -6,6 +6,13 @@ export type SlicedUploadEventDetail = {
     totalBytes: number;
 }
 
+export interface SlicedUploadEventMap {
+    'upload': CustomEvent<SlicedUploadEventDetail>;
+    'done': CustomEvent<SlicedUploadEventDetail>;
+    'error': CustomEvent<never>;
+    'abort': CustomEvent<never>;
+}
+
 const createCustomEvent = <T extends keyof GlobalEventHandlersEventMap>(
     type: T,
     eventInitDict: CustomEventInit<
@@ -14,6 +21,22 @@ const createCustomEvent = <T extends keyof GlobalEventHandlersEventMap>(
 ) => new CustomEvent(type, eventInitDict);
 
 export default class SlicedUpload extends EventTarget {
+    on<K extends keyof SlicedUploadEventMap>(
+        type: K,
+        listener: (ev: SlicedUploadEventMap[K]) => void,
+        options?: boolean | AddEventListenerOptions
+    ): void {
+        this.addEventListener(type, listener as EventListener, options);
+    }
+
+    off<K extends keyof SlicedUploadEventMap>(
+        type: K,
+        listener: (ev: SlicedUploadEventMap[K]) => void,
+        options?: boolean | EventListenerOptions
+    ): void {
+        this.removeEventListener(type, listener as EventListener, options);
+    }
+
     /**
      * File to upload
      */
