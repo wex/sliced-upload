@@ -5,6 +5,11 @@ ini_set('display_errors', 1);
 
 header("Access-Control-Allow-Origin: *");
 
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
 require_once __DIR__ . '/php/vendor/autoload.php';
 
 $datastore = new \SlicedUpload\Datastore\Mysql(

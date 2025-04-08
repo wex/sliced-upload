@@ -10,8 +10,8 @@ document.querySelector<HTMLDivElement>('#upload')!.addEventListener('change', (e
       document.querySelector<HTMLDivElement>('#progress')!.innerHTML = `${e.detail.progress}%`;
     });
 
-    slicedUpload.on('done', (e) => {
-      console.log(e);
+    slicedUpload.on('done', () => {
+      document.querySelector<HTMLDivElement>('#progress')!.innerHTML = `Upload completed`;
     });
 
     slicedUpload.on('error', (e) => {

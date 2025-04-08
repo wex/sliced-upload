@@ -1,3 +1,5 @@
+import HttpClient, { HttpClientProgressEventDetail } from "./httpclient";
+
 export type SlicedUploadEventDetail = {
     progress: number;
     currentChunk: number;
@@ -122,80 +124,34 @@ export default class SlicedUpload extends EventTarget {
         return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
+    /**
+     * Send chunk
+     */
     private _sendChunk(index: number, url: string, params: Record<string, any> = {}, headers: Record<string, string> = {}): Promise<void> {
 
         return new Promise(async (resolve, reject) => {
 
             try {
 
-                const xhr = new XMLHttpRequest();
+                const httpClient = new HttpClient('POST', url, headers, 60000);
 
-                xhr.open('POST', url, true);
+                httpClient.on('progress', (e: CustomEvent<HttpClientProgressEventDetail>) => {
 
-                for (const key in headers) {
+                    this.sentBytes = this.chunks.slice(0, index).reduce((i, t) => { return i + t.size; }, 0) + e.detail.loaded;
+                    this.progress = Math.round(this.sentBytes / this.file!.size * 100);
 
-                    xhr.setRequestHeader(key, headers[key]);
+                    this.dispatchEvent(
+                        createCustomEvent("upload", {
+                            detail: {
+                                progress: this.progress,
+                                currentChunk: index,
+                                totalChunks: this.chunks.length,
+                                sentBytes: this.sentBytes,
+                                totalBytes: this.file!.size
+                            }
+                        })
+                    );
 
-                }
-
-                xhr.addEventListener('readystatechange', () => {
-
-                    if (xhr.readyState === XMLHttpRequest.DONE) {
-
-                        if (xhr.status !== 200) {
-
-                            return reject(new Error(`HTTP Error: ${xhr.status} ${xhr.statusText}`));
-
-                        }
-
-                        try {
-
-                            const response = JSON.parse(xhr.responseText);
-                            this.nonce = response.nonce;
-
-                        } catch (e) {
-
-                            return reject(e);
-
-                        }
-
-                        return resolve();
-
-                    }
-
-                });
-
-                xhr.addEventListener('error', () => {
-
-                    return reject(new Error('Upload failed'));
-
-                });
-
-                xhr.addEventListener('abort', () => {
-
-                    return reject(new Error('Upload aborted'));
-
-                });
-
-                xhr.upload.addEventListener('progress', (event) => {
-
-                    if (event.lengthComputable) {
-
-                        this.sentBytes = this.chunks.slice(0, index).reduce((i, t) => { return i + t.size; }, 0) + event.loaded;
-                        this.progress = Math.round(this.sentBytes / this.file!.size * 100);
-
-                        this.dispatchEvent(
-                            createCustomEvent("upload", {
-                                detail: {
-                                    progress: this.progress,
-                                    currentChunk: index,
-                                    totalChunks: this.chunks.length,
-                                    sentBytes: this.sentBytes,
-                                    totalBytes: this.file!.size
-                                }
-                            })
-                        );
-                    }
 
                 });
 
@@ -210,7 +166,26 @@ export default class SlicedUpload extends EventTarget {
                     formData.append(key, params[key]);
                 }
 
-                xhr.send(formData);
+                httpClient.send(formData).then((response: string) => {
+
+                    try {
+
+                        const result = JSON.parse(response);
+                        this.nonce = result.nonce;
+
+                        return resolve();
+
+                    } catch (e) {
+
+                        return reject(e);
+
+                    }
+
+                }).catch((error: string) => {
+                    
+                    return reject(error);
+
+                });
 
             } catch (e) {
 
@@ -222,61 +197,16 @@ export default class SlicedUpload extends EventTarget {
 
     }
 
+    /**
+     * Send handshake
+     */
     private _sendHandshake(url: string, params: Record<string, any> = {}, headers: Record<string, string> = {}): Promise<void> {
 
         return new Promise(async (resolve, reject) => {
 
             try {
 
-                const xhr = new XMLHttpRequest();
-
-                xhr.open('POST', url, true);
-
-                for (const key in headers) {
-
-                    xhr.setRequestHeader(key, headers[key]);
-
-                }
-
-                xhr.addEventListener('readystatechange', () => {
-
-                    if (xhr.readyState === XMLHttpRequest.DONE) {
-
-                        if (xhr.status !== 200) {
-
-                            return reject(new Error(`HTTP Error: ${xhr.status} ${xhr.statusText}`));
-
-                        }
-
-                        try {
-
-                            const response = JSON.parse(xhr.responseText);
-                            this.nonce = response.nonce;
-                            this.fileHash = response.uuid;
-
-                        } catch (e) {
-
-                            return reject(e);
-
-                        }
-
-                        return resolve();
-
-                    }
-
-                });
-
-                xhr.addEventListener('error', () => {
-
-                    return reject(new Error('Upload failed'));
-
-                });
-
-                xhr.addEventListener('abort', () => {
-
-                    return reject(new Error('Upload aborted'));
-
-                });
+                const httpClient = new HttpClient('POST', url, headers, 1000);
 
                 const formData = new FormData();
 
@@ -290,7 +220,27 @@ export default class SlicedUpload extends EventTarget {
                     formData.append(key, params[key]);
                 }
 
-                xhr.send(formData);
+                httpClient.send(formData).then((response: string) => {
+
+                    try {
+
+                        const result = JSON.parse(response);
+                        this.nonce = result.nonce;
+                        this.fileHash = result.uuid;
+
+                        return resolve();
+
+                    } catch (e) {
+
+                        return reject(e);
+
+                    }
+
+                }).catch((error: string) => {
+                    
+                    return reject(error);
+
+                });
 
             } catch (e) {
 
