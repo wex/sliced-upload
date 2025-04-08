@@ -1,11 +1,4 @@
-declare global {
-    interface GlobalEventHandlersEventMap {
-        upload: CustomEvent<SlicedUploadEventDetail>;
-        done: CustomEvent<SlicedUploadEventDetail>;
-    }
-}
-
-type SlicedUploadEventDetail = {
+export type SlicedUploadEventDetail = {
     progress: number;
     currentChunk: number;
     totalChunks: number;
@@ -50,16 +43,6 @@ export default class SlicedUpload extends EventTarget {
      * Upload progress
      */
     private progress: number;
-
-    /**
-     * Error event
-     */
-    private _errorEvent: Event = new Event('error');
-
-    /**
-     * Abort event
-     */
-    private _abortEvent: Event = new Event('abort');
 
     /**
      * Abort controller
@@ -367,7 +350,7 @@ export default class SlicedUpload extends EventTarget {
             } catch (e) {
 
                 // Dispatch error event
-                this.dispatchEvent(this._errorEvent);
+                this.dispatchEvent(createCustomEvent("error", {}));
 
                 return reject(e);
 
@@ -379,7 +362,7 @@ export default class SlicedUpload extends EventTarget {
 
     public abort(): void {
 
-        this.dispatchEvent(this._abortEvent);
+        this.dispatchEvent(createCustomEvent("abort", {}));
         this.controller.abort();
 
     }
