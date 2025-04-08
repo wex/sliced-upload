@@ -1,12 +1,24 @@
-export interface SlicedUploadEvent extends Event {
-    detail: {
-        progress: number;
-        currentChunk: number;
-        totalChunks: number;
-        sentBytes: number;
-        totalBytes: number;
-    };
+declare global {
+    interface GlobalEventHandlersEventMap {
+        upload: CustomEvent<SlicedUploadEventDetail>;
+        done: CustomEvent<SlicedUploadEventDetail>;
+    }
 }
+
+type SlicedUploadEventDetail = {
+    progress: number;
+    currentChunk: number;
+    totalChunks: number;
+    sentBytes: number;
+    totalBytes: number;
+}
+
+const createCustomEvent = <T extends keyof GlobalEventHandlersEventMap>(
+    type: T,
+    eventInitDict: CustomEventInit<
+        GlobalEventHandlersEventMap[T] extends CustomEvent<infer T> ? T : never
+    >,
+) => new CustomEvent(type, eventInitDict);
 
 export default class SlicedUpload extends EventTarget {
     /**
@@ -48,16 +60,6 @@ export default class SlicedUpload extends EventTarget {
      * Abort event
      */
     private _abortEvent: Event = new Event('abort');
-
-    /**
-     * Progress event
-     */
-    private _progressEvent: SlicedUploadEvent = new Event('progress') as SlicedUploadEvent;
-
-    /**
-     * Load event
-     */
-    private _readyEvent: SlicedUploadEvent = new Event('done') as SlicedUploadEvent;
 
     /**
      * Abort controller
@@ -143,7 +145,6 @@ export default class SlicedUpload extends EventTarget {
                         try {
 
                             const response = JSON.parse(xhr.responseText);
-                            console.log(response);
                             this.nonce = response.nonce;
 
                         } catch (e) {
@@ -177,16 +178,17 @@ export default class SlicedUpload extends EventTarget {
                         this.sentBytes = this.chunks.slice(0, index).reduce((i, t) => { return i + t.size; }, 0) + event.loaded;
                         this.progress = Math.round(this.sentBytes / this.file!.size * 100);
 
-                        this._progressEvent.detail = {
-                            progress: this.progress,
-                            currentChunk: index,
-                            totalChunks: this.chunks.length,
-                            sentBytes: this.sentBytes,
-                            totalBytes: this.file!.size
-                        };
-
-                        this.dispatchEvent(this._progressEvent);
-
+                        this.dispatchEvent(
+                            createCustomEvent("upload", {
+                                detail: {
+                                    progress: this.progress,
+                                    currentChunk: index,
+                                    totalChunks: this.chunks.length,
+                                    sentBytes: this.sentBytes,
+                                    totalBytes: this.file!.size
+                                }
+                            })
+                        );
                     }
 
                 });
@@ -243,7 +245,6 @@ export default class SlicedUpload extends EventTarget {
                         try {
 
                             const response = JSON.parse(xhr.responseText);
-                            console.log(response);
                             this.nonce = response.nonce;
                             this.fileHash = response.uuid;
 
@@ -335,20 +336,32 @@ export default class SlicedUpload extends EventTarget {
                     this.progress = Math.round(this.sentBytes / this.file!.size * 100);
 
                     // Dispatch progress event
-                    this._progressEvent.detail = {
-                        progress: this.progress,
-                        currentChunk: this.chunkIndex,
-                        totalChunks: this.chunks.length,
-                        sentBytes: this.sentBytes,
-                        totalBytes: this.file!.size
-                    };
-                    this.dispatchEvent(this._progressEvent);
+                    this.dispatchEvent(
+                        createCustomEvent("upload", {
+                            detail: {
+                                progress: this.progress,
+                                currentChunk: this.chunkIndex,
+                                totalChunks: this.chunks.length,
+                                sentBytes: this.sentBytes,
+                                totalBytes: this.file!.size
+                            }
+                        })
+                    );
 
                 }
 
                 // Dispatch ready event
-                this.dispatchEvent(this._readyEvent);
-
+                this.dispatchEvent(
+                    createCustomEvent("done", {
+                        detail: {
+                            progress: this.progress,
+                            currentChunk: this.chunkIndex,
+                            totalChunks: this.chunks.length,
+                            sentBytes: this.sentBytes,
+                            totalBytes: this.file!.size
+                        }
+                    })
+                );
                 return resolve();
 
             } catch (e) {
