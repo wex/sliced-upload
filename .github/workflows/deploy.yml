@@ -23,7 +23,7 @@ jobs:
         run: npm run build
 
       - name: Create zip
-        run: zip -r -D dist.zip dist
+        run: zip dist.zip dist/*.js
 
       - name: Create Release
         id: create_release
@@ -45,5 +45,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./dist.zip
-          asset_name: slided-upload-${{ github.ref }}.zip
+          asset_name: slided-upload_${{ github.event.release.tag_name }}.zip
           asset_content_type: application/zip
