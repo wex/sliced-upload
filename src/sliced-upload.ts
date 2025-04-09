@@ -58,12 +58,12 @@ export default class SlicedUpload extends EventTarget {
     /**
      * File to upload
      */
-    private file?: File;
+    private file: File;
 
     /**
      * URL
      */
-    private url?: string;
+    private url: string = '';
 
     /**
      * Params
@@ -78,12 +78,12 @@ export default class SlicedUpload extends EventTarget {
     /**
      * Size of each chunk in bytes
      */
-    private chunkSize?: number;
+    private chunkSize: number = 0;
 
     /**
-     * Chunks of the file
+     * Current chunk being processed
      */
-    private chunk?: Blob;
+    private chunk: Blob | null = null;
 
     /**
      * Bytes sent
@@ -91,7 +91,7 @@ export default class SlicedUpload extends EventTarget {
     private sentBytes: number;
 
     /**
-     * Upload progress
+     * Upload progress percentage
      */
     private progress: number;
 
@@ -103,12 +103,12 @@ export default class SlicedUpload extends EventTarget {
     /**
      * Nonce
      */
-    private nonce?: string;
+    private nonce: string = '';
 
     /**
      * UUID
      */
-    private uuid?: string;
+    private uuid: string = '';
 
     /**
      * Constructor
@@ -179,14 +179,14 @@ export default class SlicedUpload extends EventTarget {
             try {
 
                 const request: IHandshakeRequest = {
-                    checksum: await this._getFileHash(this.file!),
-                    name: this.file!.name,
-                    size: this.file!.size,
-                    type: this.file!.type
+                    checksum: await this._getFileHash(this.file),
+                    name: this.file.name,
+                    size: this.file.size,
+                    type: this.file.type
                 };
 
                 HttpClient.post(
-                    this.url!,
+                    this.url,
                     this._getFormData(request),
                     this.headers
                 ).then((response: IHttpClientResponse) => {
@@ -240,7 +240,7 @@ export default class SlicedUpload extends EventTarget {
 
             try {
 
-                this.chunk = this.file!.slice(this.sentBytes, this.sentBytes + this.chunkSize!);
+                this.chunk = this.file.slice(this.sentBytes, this.sentBytes + this.chunkSize);
 
                 return resolve();
 
@@ -267,24 +267,24 @@ export default class SlicedUpload extends EventTarget {
                 await this._process();
 
                 const request: IUploadRequest = {
-                    uuid: this.uuid!,
+                    uuid: this.uuid,
                     chunk: this.chunk!,
-                    nonce: this.nonce!,
+                    nonce: this.nonce,
                     checksum: await this._getChunkHash(this.chunk!)
                 };
 
                 HttpClient.patch(
-                    this.url!,
+                    this.url,
                     this._getFormData(request),
                     this.headers,
                     60000,
                     (e: HttpClientProgressEventDetail) => {
-                        this.progress = Math.round((this.sentBytes + e.loaded) / this.file!.size * 100);
+                        this.progress = Math.round((this.sentBytes + e.loaded) / this.file.size * 100);
 
                         this.emit("upload", {
                             progress: this.progress,
                             sentBytes: this.sentBytes + e.loaded,
-                            totalBytes: this.file!.size
+                            totalBytes: this.file.size
                         })
                     }
                 ).then((response: IHttpClientResponse) => {
@@ -297,12 +297,12 @@ export default class SlicedUpload extends EventTarget {
                             this.nonce = result.nonce;
                             this.sentBytes += result.size;
 
-                            this.progress = Math.round(this.sentBytes / this.file!.size * 100);
+                            this.progress = Math.round(this.sentBytes / this.file.size * 100);
 
                             this.emit("upload", {
                                 progress: this.progress,
                                 sentBytes: this.sentBytes,
-                                totalBytes: this.file!.size
+                                totalBytes: this.file.size
                             });
 
                             return resolve();
@@ -321,9 +321,9 @@ export default class SlicedUpload extends EventTarget {
                             this.sentBytes += result.size;
 
                             this.emit("done", {
-                                progress: this.progress,
+                                progress: 1,
                                 sentBytes: this.sentBytes,
-                                totalBytes: this.file!.size
+                                totalBytes: this.file.size
                             });
 
                             return resolve();
@@ -363,12 +363,12 @@ export default class SlicedUpload extends EventTarget {
             try {   
 
                 const request: ICancelRequest = {
-                    uuid: this.uuid!,
-                    nonce: this.nonce!
+                    uuid: this.uuid,
+                    nonce: this.nonce
                 };
 
                 HttpClient.delete(
-                    this.url!,
+                    this.url,
                     this._getFormData(request),
                     this.headers,
                 ).then((response: IHttpClientResponse) => {
@@ -416,7 +416,7 @@ export default class SlicedUpload extends EventTarget {
 
                 await this._handshake();
 
-                while (this.sentBytes < this.file!.size) {
+                while (this.sentBytes < this.file.size) {
 
                     if (this.controller.signal.aborted) {
                         return reject("Abort");
