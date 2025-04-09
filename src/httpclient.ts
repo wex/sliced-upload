@@ -1,7 +1,10 @@
 export type HttpClientMethod = 'POST' | 'DELETE' | 'PATCH' | 'HEAD';
 
+export interface HttpClientEventMap {
+    progress: CustomEvent<HttpClientProgressEventDetail>;
+}
+
 export type HttpClientProgressEventDetail = {
-    lengthComputable: boolean;
     progress: number;
     loaded: number;
     total: number;
@@ -11,6 +14,13 @@ export interface IHttpClientResponse {
     status: number;
     text: string;
 }
+
+const createCustomEvent = <T extends keyof HttpClientEventMap>(
+    type: T,
+    eventInitDict: CustomEventInit<
+    HttpClientEventMap[T] extends CustomEvent<infer T> ? T : never
+    >,
+) => new CustomEvent(type, eventInitDict);
 
 export default class HttpClient extends EventTarget {
 
@@ -32,7 +42,10 @@ export default class HttpClient extends EventTarget {
 
     }
 
-    on<K extends keyof HttpClientEventMap>(
+    /**
+     * Bind event
+     */
+    public on<K extends keyof HttpClientEventMap>(
         type: K,
         listener: (ev: HttpClientEventMap[K]) => void,
         options?: boolean | AddEventListenerOptions
@@ -40,12 +53,25 @@ export default class HttpClient extends EventTarget {
         this.addEventListener(type, listener as EventListener, options);
     }
 
-    off<K extends keyof HttpClientEventMap>(
+    /**
+     * Unbind event
+     */
+    public off<K extends keyof HttpClientEventMap>(
         type: K,
         listener: (ev: HttpClientEventMap[K]) => void,
         options?: boolean | EventListenerOptions
     ): void {
         this.removeEventListener(type, listener as EventListener, options);
+    }
+
+    /**
+     * Emit event
+     */
+    public emit<K extends keyof HttpClientEventMap>(
+        type: K,
+        detail: HttpClientEventMap[K] extends CustomEvent<infer T> ? T : never
+    ): void {
+        this.dispatchEvent(createCustomEvent(type, { detail }));
     }
 
     public async send(payload: FormData | null = null): Promise<IHttpClientResponse> {
@@ -91,12 +117,11 @@ export default class HttpClient extends EventTarget {
             this._request.upload.addEventListener('progress', (e) => {
 
                 if (e.lengthComputable) {
-                    this.dispatchEvent(new CustomEvent<HttpClientProgressEventDetail>('progress', { detail: {
-                        lengthComputable: e.lengthComputable,
+                    this.emit("progress", {
                         loaded: e.loaded,
                         total: e.total,
-                        progress: (e.total > 0) ? (e.loaded / e.total) : 0
-                    } }));
+                        progress: (e.total > 0) ? (e.loaded / e.total) : 0        
+                    })
                 }
 
             });
@@ -107,27 +132,51 @@ export default class HttpClient extends EventTarget {
 
     }
 
-    public static async post(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
+    public static async post(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000, progressCallback?: (e: HttpClientProgressEventDetail) => void): Promise<IHttpClientResponse> {
 
-        return new HttpClient('POST', url, headers, timeout).send(payload);
+        const client = new HttpClient('POST', url, headers, timeout)
 
-    }
-
-    public static async patch(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
-
-        return new HttpClient('PATCH', url, headers, timeout).send(payload);
-
-    }
-
-    public static async delete(url: string, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
-
-        return new HttpClient('DELETE', url, headers, timeout).send();
+        client.on('progress', (e) => {
+            progressCallback?.(e.detail);
+        });
+        
+        return client.send(payload);
 
     }
 
-    public static async head(url: string, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
+    public static async patch(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000, progressCallback?: (e: HttpClientProgressEventDetail) => void): Promise<IHttpClientResponse> {
 
-        return new HttpClient('HEAD', url, headers, timeout).send();
+        const client = new HttpClient('PATCH', url, headers, timeout)
+
+        client.on('progress', (e) => {
+            progressCallback?.(e.detail);
+        });
+
+        return client.send(payload);
+
+    }
+
+    public static async delete(url: string, headers: Record<string, string> = {}, timeout: number = 5000, progressCallback?: (e: HttpClientProgressEventDetail) => void): Promise<IHttpClientResponse> {
+
+        const client = new HttpClient('DELETE', url, headers, timeout)
+
+        client.on('progress', (e) => {
+            progressCallback?.(e.detail);
+        });
+
+        return client.send();
+
+    }
+
+    public static async head(url: string, headers: Record<string, string> = {}, timeout: number = 5000, progressCallback?: (e: HttpClientProgressEventDetail) => void): Promise<IHttpClientResponse> {
+
+        const client = new HttpClient('HEAD', url, headers, timeout)
+
+        client.on('progress', (e) => {
+            progressCallback?.(e.detail);
+        });
+
+        return client.send();
 
     }
 
