@@ -4,22 +4,21 @@ namespace SlicedUpload\SlicedUpload;
 
 class Chunk
 {
-    public $identifier;
-    public $index;
+    public $hash;
     public $chunk;
+    public $size;
 
-    public function __construct($identifier, $index, $chunk)
+    public function __construct($hash, $chunk)
     {
-        $this->identifier = $identifier;
-        $this->index = $index;
+        $this->hash  = $hash;
         $this->chunk = $chunk;
+        $this->size  = filesize($chunk);
     }
 
-    public static function create($uploadHash, $chunkIndex, $chunk)
+    public static function create($chunkHash, $chunk)
     {
         $instance = new static(
-            $uploadHash,
-            $chunkIndex,
+            $chunkHash,
             $chunk
         );
 
@@ -34,7 +33,13 @@ class Chunk
 
         }
 
-        if (!filesize($this->chunk)) {
+        if ($this->size === 0) {
+
+            return false;
+
+        }
+
+        if ($this->hash !== hash_file('sha256', $this->chunk)) {
 
             return false;
 

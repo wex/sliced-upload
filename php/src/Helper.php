@@ -4,25 +4,36 @@ namespace SlicedUpload;
 
 abstract class Helper
 {
-    public static function ok(array $response = [])
+    public static function ok(array $response = [], $code = 200)
     {
-        http_response_code(200);
+        http_response_code($code);
         echo json_encode($response);
 
         exit(0);
     }
 
-    public static function error($message)
+    public static function error($message, $code = 400)
     {
-        http_response_code(400);
+        http_response_code($code);
 
         echo json_encode([
             'error' => $message
         ]);
 
-        file_put_contents(__DIR__ . '/../error.log', "{$message}\n", FILE_APPEND);
-
         exit(1);
+    }
+
+    public static function getMaxSize()
+    {
+        $maxSize = ini_get('upload_max_filesize');
+
+        if (!is_numeric($maxSize)) {
+
+            return 1024 * 1024 * 1;
+
+        }
+
+        return $maxSize;
     }
 
     public static function getTempDir()

@@ -8,6 +8,7 @@ document.querySelector<HTMLDivElement>('#upload')!.addEventListener('change', (e
 
     slicedUpload.on("upload", (e) => {
       document.querySelector<HTMLDivElement>('#progress')!.innerHTML = `${e.detail.progress}%`;
+      console.log(e.detail);
     });
 
     slicedUpload.on('done', () => {

@@ -4,29 +4,23 @@ JS-library to overcome limitations of stateless servers and upload limits.
 
 ## TODO
 
-- Change methods
-  - Use `POST` at handshake
-  - Use `PATCH` at upload
-  - Use `HEAD` to get status
-  - Use `DELETE` to cancel
-- Use `Content-Range` header
-- Use `HTTP 206 Partial Content` and `HTTP 416 Range Not Satisfiable`
-- Drop `index`
 - Allow pause/continue with `HEAD`
 
 ## How it works?
 
-1. New `SlicedUpload` is created with given `File` and `upload()` is used to initialize the upload.
-2. A `handshake` is made with servers - SHA256 -hash, meta information and count of slices are provided to server.
-3. Server responds with `uuid` and `nonce` - `uuid` is unique identifier for all slices and `nonce` is updated after every slice.
-4. For every slice (chunk) a `POST` request will be sent with `uuid`, `nonce`, `chunk` and `index`
-5. After server has received all slices (chunks), we are completed and SHA256 is verified.
+1. Client-side uses `SlicedUpload` to send the file in chunks that server can handle
+2. Server handles chunks one-by-one and validates every chunk and file with `SHA256`.
+3. Database is used to manage the state of uploads.
+
+See [docs/protocol.md](docs/protocol.md) for more information about protocol itself.
 
 ## What about server side?
 
 There is a prototype implementation with PHP under `php/` - upload state is kept with `MySQL`.
 
-**This is not the final implementation!**
+**During test implementation I realized that PHP does not support `PATCH`/`PUT` methods out-of-the-box. There is an example for PHP 8.4 in `test.php` and for older versions (or other languages with same challenges) you can use `SlicedUpload.enableRequestOverrides(true);` to use `POST` to handle the requests and inject `_method` = `POST` into payload.**
+
+### **This is not the final implementation! Please wait for server libraries!**
 
 ## Server libraries
 

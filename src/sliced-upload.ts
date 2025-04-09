@@ -1,9 +1,8 @@
-import HttpClient, { HttpClientProgressEventDetail } from "./httpclient";
+import HttpClient, { HttpClientProgressEventDetail, IHttpClientResponse } from "./httpclient";
+import { ICancelRequest, IHandshakeRequest, IHandshakeResponse, IUploadRequest, IUploadResponse } from "./interfaces";
 
 export type SlicedUploadEventDetail = {
     progress: number;
-    currentChunk: number;
-    totalChunks: number;
     sentBytes: number;
     totalBytes: number;
 }
@@ -11,18 +10,22 @@ export type SlicedUploadEventDetail = {
 export interface SlicedUploadEventMap {
     'upload': CustomEvent<SlicedUploadEventDetail>;
     'done': CustomEvent<SlicedUploadEventDetail>;
-    'error': CustomEvent<never>;
-    'abort': CustomEvent<never>;
+    'error': CustomEvent<any>;
+    'abort': CustomEvent<any>;
 }
 
-const createCustomEvent = <T extends keyof GlobalEventHandlersEventMap>(
+const createCustomEvent = <T extends keyof SlicedUploadEventMap>(
     type: T,
     eventInitDict: CustomEventInit<
-        GlobalEventHandlersEventMap[T] extends CustomEvent<infer T> ? T : never
+    SlicedUploadEventMap[T] extends CustomEvent<infer T> ? T : never
     >,
 ) => new CustomEvent(type, eventInitDict);
 
 export default class SlicedUpload extends EventTarget {
+
+    /**
+     * Bind event
+     */
     on<K extends keyof SlicedUploadEventMap>(
         type: K,
         listener: (ev: SlicedUploadEventMap[K]) => void,
@@ -31,6 +34,9 @@ export default class SlicedUpload extends EventTarget {
         this.addEventListener(type, listener as EventListener, options);
     }
 
+    /**
+     * Unbind event
+     */
     off<K extends keyof SlicedUploadEventMap>(
         type: K,
         listener: (ev: SlicedUploadEventMap[K]) => void,
@@ -40,24 +46,44 @@ export default class SlicedUpload extends EventTarget {
     }
 
     /**
+     * Emit event
+     */
+    emit<K extends keyof SlicedUploadEventMap>(
+        type: K,
+        detail: SlicedUploadEventMap[K] extends CustomEvent<infer T> ? T : never
+    ): void {
+        this.dispatchEvent(createCustomEvent(type, { detail }));
+    }
+
+    /**
      * File to upload
      */
     private file?: File;
 
     /**
+     * URL
+     */
+    private url?: string;
+
+    /**
+     * Params
+     */
+    private params: Record<string, any> = {};
+
+    /**
+     * Headers
+     */
+    private headers: Record<string, string> = {};
+
+    /**
      * Size of each chunk in bytes
      */
-    private chunkSize: number;
+    private chunkSize?: number;
 
     /**
      * Chunks of the file
      */
-    private chunks: Blob[];
-
-    /**
-     * Chunk index
-     */
-    private chunkIndex: number;
+    private chunk?: Blob;
 
     /**
      * Bytes sent
@@ -75,14 +101,14 @@ export default class SlicedUpload extends EventTarget {
     private controller: AbortController;
 
     /**
-     * File hash
-     */
-    private fileHash?: string;
-
-    /**
      * Nonce
      */
     private nonce?: string;
+
+    /**
+     * UUID
+     */
+    private uuid?: string;
 
     /**
      * Constructor
@@ -90,34 +116,25 @@ export default class SlicedUpload extends EventTarget {
     constructor(
         file: File,
         controller: AbortController = new AbortController(),
-        chunkSize: number = 1024 * 1024
     ) {
         super();
 
         this.file = file;
-        this.chunkSize = chunkSize;
-        this.chunks = [];
-        this.chunkIndex = 0;
         this.sentBytes = 0;
         this.progress = 0;
         this.controller = controller;
-
-        this._createChunks(file);
     }
 
     /**
-     * Create chunks
+     * Enable request overrides
      */
-    private _createChunks(file: File): void {
-        this.chunks = [];
-
-        for (let i = 0; i < file.size; i += this.chunkSize) {
-            this.chunks.push(file.slice(i, i + this.chunkSize));
-        }
+    static enableRequestOverrides(is: boolean = true) {
+        HttpClient.HTTP_METHOD_OVERRIDE = is;
     }
 
     /**
      * Get file hash
+     * @since 1.0.0
      */
     private async _getFileHash(file: File): Promise<string> {
         const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
@@ -125,205 +142,211 @@ export default class SlicedUpload extends EventTarget {
     }
 
     /**
-     * Send chunk
+     * Get chunk hash
+     * @since 2.0.0
      */
-    private _sendChunk(index: number, url: string, params: Record<string, any> = {}, headers: Record<string, string> = {}): Promise<void> {
-
-        return new Promise(async (resolve, reject) => {
-
-            try {
-
-                const httpClient = new HttpClient('POST', url, headers, 60000);
-
-                httpClient.on('progress', (e: CustomEvent<HttpClientProgressEventDetail>) => {
-
-                    this.sentBytes = this.chunks.slice(0, index).reduce((i, t) => { return i + t.size; }, 0) + e.detail.loaded;
-                    this.progress = Math.round(this.sentBytes / this.file!.size * 100);
-
-                    this.dispatchEvent(
-                        createCustomEvent("upload", {
-                            detail: {
-                                progress: this.progress,
-                                currentChunk: index,
-                                totalChunks: this.chunks.length,
-                                sentBytes: this.sentBytes,
-                                totalBytes: this.file!.size
-                            }
-                        })
-                    );
-
-
-                });
-
-                const formData = new FormData();
-
-                formData.append('sliced_upload', this.fileHash!);
-                formData.append('chunk', this.chunks[index]);
-                formData.append('index', index.toString());
-                formData.append('nonce', this.nonce!);
-
-                for (const key in params) {
-                    formData.append(key, params[key]);
-                }
-
-                httpClient.send(formData).then((response: string) => {
-
-                    try {
-
-                        const result = JSON.parse(response);
-                        this.nonce = result.nonce;
-
-                        return resolve();
-
-                    } catch (e) {
-
-                        return reject(e);
-
-                    }
-
-                }).catch((error: string) => {
-                    
-                    return reject(error);
-
-                });
-
-            } catch (e) {
-
-                return reject(e);
-
-            }
-
-        });
-
+    private async _getChunkHash(chunk: Blob): Promise<string> {
+        const hash = await crypto.subtle.digest('SHA-256', await chunk.arrayBuffer());
+        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     /**
-     * Send handshake
+     * Get form data
+     * @since 2.0.0
      */
-    private _sendHandshake(url: string, params: Record<string, any> = {}, headers: Record<string, string> = {}): Promise<void> {
+    private _getFormData(data: Record<string, any>): FormData {
+        const formData = new FormData();
 
-        return new Promise(async (resolve, reject) => {
+        for (const key in this.params) {
+            formData.append(key, this.params[key]);
+        }
 
-            try {
+        for (const key in data) {
+            formData.append(key, data[key]);
+        }
 
-                const httpClient = new HttpClient('POST', url, headers, 1000);
-
-                const formData = new FormData();
-
-                formData.append('sliced_upload', this.fileHash!);
-                formData.append('filename', this.file!.name);
-                formData.append('filesize', this.file!.size.toString());
-                formData.append('filetype', this.file!.type);
-                formData.append('chunks', this.chunks.length.toString());
-
-                for (const key in params) {
-                    formData.append(key, params[key]);
-                }
-
-                httpClient.send(formData).then((response: string) => {
-
-                    try {
-
-                        const result = JSON.parse(response);
-                        this.nonce = result.nonce;
-                        this.fileHash = result.uuid;
-
-                        return resolve();
-
-                    } catch (e) {
-
-                        return reject(e);
-
-                    }
-
-                }).catch((error: string) => {
-                    
-                    return reject(error);
-
-                });
-
-            } catch (e) {
-
-                return reject(e);
-
-            }
-
-        });
-
+        return formData;
     }
 
     /**
-     * Upload file
+     * Handshake
+     * @since 2.0.0
      */
-    public async upload(url: string, params: Record<string, any> = {}, headers: Record<string, string> = {}): Promise<void> {
+    private _handshake(): Promise<void> {
 
         return new Promise(async (resolve, reject) => {
 
             try {
 
-                // Verify file
-                if (!this.file || this.file.size === 0) {
+                const request: IHandshakeRequest = {
+                    checksum: await this._getFileHash(this.file!),
+                    name: this.file!.name,
+                    size: this.file!.size,
+                    type: this.file!.type
+                };
 
-                    throw new Error('Invalid file');
+                HttpClient.post(
+                    this.url!,
+                    this._getFormData(request),
+                    this.headers
+                ).then((response: IHttpClientResponse) => {
 
-                }
+                    if (response.status !== 201) {
+                        
+                        return reject(response.text);
 
-                // Get SHA-256 hash of the file
-                this.fileHash = await this._getFileHash(this.file!);
+                    } else {
 
-                // Send handshake to the server
-                await this._sendHandshake(url, params, headers);
+                        try {
 
-                // Send chunks to the server
-                for (this.chunkIndex = 0; this.chunkIndex < this.chunks.length; this.chunkIndex++) {
+                            const result: IHandshakeResponse = JSON.parse(response.text);
+                            this.uuid = result.uuid;
+                            this.nonce = result.nonce;
+                            this.chunkSize = result.max_size;
 
-                    // Check if the upload is aborted
-                    if (this.controller.signal.aborted) {
+                            return resolve();
 
-                        throw new Error('Upload aborted');
+                        } catch (e) {
 
-                    }
+                            return reject("JSON parse error");
 
-                    // Send chunk to the server
-                    await this._sendChunk(this.chunkIndex, url, params, headers);
-
-                    // Update progress
-                    this.sentBytes = this.chunks.slice(0, this.chunkIndex).reduce((i, t) => { return i + t.size; }, 0) + this.chunks[this.chunkIndex].size;
-                    this.progress = Math.round(this.sentBytes / this.file!.size * 100);
-
-                    // Dispatch progress event
-                    this.dispatchEvent(
-                        createCustomEvent("upload", {
-                            detail: {
-                                progress: this.progress,
-                                currentChunk: this.chunkIndex,
-                                totalChunks: this.chunks.length,
-                                sentBytes: this.sentBytes,
-                                totalBytes: this.file!.size
-                            }
-                        })
-                    );
-
-                }
-
-                // Dispatch ready event
-                this.dispatchEvent(
-                    createCustomEvent("done", {
-                        detail: {
-                            progress: this.progress,
-                            currentChunk: this.chunkIndex,
-                            totalChunks: this.chunks.length,
-                            sentBytes: this.sentBytes,
-                            totalBytes: this.file!.size
                         }
-                    })
-                );
+
+                    }
+
+                }).catch((error: string) => {
+
+                    return reject(error);
+
+                });
+
+            } catch (e) {
+
+                return reject(e);
+
+            }
+
+        });
+
+    }
+
+    /**
+     * Process next chunk
+     * @since 2.0.0
+     */
+    private _process(): Promise<void> {
+
+        return new Promise(async (resolve, reject) => {
+
+            try {
+
+                this.chunk = this.file!.slice(this.sentBytes, this.sentBytes + this.chunkSize!);
+
                 return resolve();
 
             } catch (e) {
 
-                // Dispatch error event
-                this.dispatchEvent(createCustomEvent("error", {}));
+                return reject(e);
+
+            }
+
+        });
+
+    }
+
+    /**
+     * Send chunk
+     * @since 2.0.0
+     */
+    private _send(): Promise<void> {
+
+        return new Promise(async (resolve, reject) => {
+
+            try {
+
+                await this._process();
+
+                const request: IUploadRequest = {
+                    uuid: this.uuid!,
+                    chunk: this.chunk!,
+                    nonce: this.nonce!,
+                    checksum: await this._getChunkHash(this.chunk!)
+                };
+
+                HttpClient.patch(
+                    this.url!,
+                    this._getFormData(request),
+                    this.headers,
+                    60000,
+                    (e: HttpClientProgressEventDetail) => {
+                        this.progress = Math.round((this.sentBytes + e.loaded) / this.file!.size * 100);
+
+                        this.emit("upload", {
+                            progress: this.progress,
+                            sentBytes: this.sentBytes + e.loaded,
+                            totalBytes: this.file!.size
+                        })
+                    }
+                ).then((response: IHttpClientResponse) => {
+
+                    if (response.status === 202) {
+                        
+                        try {
+
+                            const result: IUploadResponse = JSON.parse(response.text);
+                            this.nonce = result.nonce;
+                            this.sentBytes += result.size;
+
+                            this.progress = Math.round(this.sentBytes / this.file!.size * 100);
+
+                            this.emit("upload", {
+                                progress: this.progress,
+                                sentBytes: this.sentBytes,
+                                totalBytes: this.file!.size
+                            });
+
+                            return resolve();
+
+                        } catch (e) {
+
+                            return reject("JSON parse error");
+
+                        }
+
+                    } else if (response.status === 200) {
+
+                        try {
+
+                            const result: IUploadResponse = JSON.parse(response.text);
+                            this.sentBytes += result.size;
+
+                            this.emit("done", {
+                                progress: this.progress,
+                                sentBytes: this.sentBytes,
+                                totalBytes: this.file!.size
+                            });
+
+                            return resolve();
+
+                        } catch (e) {
+
+                            return reject("JSON parse error");
+
+                        }
+
+                    } else {
+
+                        return reject(response.text);
+
+                    }
+
+                }).catch((error: string) => {
+
+                    return reject(error);
+
+                });
+
+            } catch (e) {
 
                 return reject(e);
 
@@ -333,11 +356,113 @@ export default class SlicedUpload extends EventTarget {
 
     }
 
-    public abort(): void {
+    private _abort(): Promise<void> {
 
-        this.dispatchEvent(createCustomEvent("abort", {}));
-        this.controller.abort();
+        return new Promise(async (resolve, reject) => {
 
+            try {   
+
+                const request: ICancelRequest = {
+                    uuid: this.uuid!,
+                    nonce: this.nonce!
+                };
+
+                HttpClient.delete(
+                    this.url!,
+                    this._getFormData(request),
+                    this.headers,
+                ).then((response: IHttpClientResponse) => {
+
+                    if (response.status === 200) {
+
+                        return resolve();
+
+                    } else {
+
+                        return reject(response.text);
+
+                    }
+
+                }).catch((error: string) => {
+
+                    return reject(error);
+
+                });
+                        
+
+            } catch (e) {
+
+                reject(e);
+
+            }
+
+        });
+
+    }
+
+    /**
+     * Upload
+     * @since 2.0.0
+     */
+    public upload(url: string, params: Record<string, any> = {}, headers: Record<string, string> = {}): Promise<void> {
+
+        return new Promise(async (resolve, reject) => {
+
+            try {
+
+                this.url = url;
+                this.params = params;
+                this.headers = headers;
+
+                await this._handshake();
+
+                while (this.sentBytes < this.file!.size) {
+
+                    if (this.controller.signal.aborted) {
+                        return reject("Abort");
+                    }
+
+                    await this._send();
+
+                }
+
+                return resolve();
+
+            } catch (e) {
+
+                return reject(e);
+
+            }
+
+        });
+
+    }
+
+    /**
+     * Abort
+     * @since 2.0.0
+     */
+    public abort(): Promise<void> {
+
+        return new Promise(async (resolve, reject) => {
+
+            try {
+
+                this.controller.abort();
+
+                await this._abort();
+
+                this.emit("abort", {});
+
+                return resolve();
+                
+            } catch (e) {
+
+                return reject(e);
+
+            }
+
+        });
     }
 
 
