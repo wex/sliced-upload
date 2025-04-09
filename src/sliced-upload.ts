@@ -123,6 +123,10 @@ export default class SlicedUpload extends EventTarget {
         this.sentBytes = 0;
         this.progress = 0;
         this.controller = controller;
+
+        if (this.file.size === 0) {
+            throw new Error("File is empty");
+        }
     }
 
     /**
