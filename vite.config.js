@@ -5,7 +5,8 @@ export default defineConfig({
         lib: {
             entry: './src/sliced-upload.ts',
             name: 'SlicedUpload',
-            fileName: (format) => `sliced-upload.${format}.js`,
-        },
+            fileName: (format) => `sliced-upload.min.js`,
+            formats: ['umd'],
+        }
     },
 });

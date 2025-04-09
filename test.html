@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vite + TS</title>
-    <script src="dist/sliced-upload.umd.js"></script>
+    <script src="dist/sliced-upload.min.js"></script>
   </head>
   <body>
     <div id="app">
@@ -17,9 +17,6 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelector('#upload').addEventListener('change', (e) => {
-
-              console.log(e.target.files[0]);
-/*
                 const slicedUpload = new SlicedUpload(e.target.files[0]);
                 slicedUpload.addEventListener('upload', (e) => {
                     document.querySelector('#progress').innerHTML = `${e.detail.progress}%`;
@@ -32,7 +29,6 @@
                 }).catch((e) => {
                     console.error(e);
                 });
-*/
             });
         });
     </script>
