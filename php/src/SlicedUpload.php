@@ -11,31 +11,14 @@ class SlicedUpload
     protected $chunkIndex;
     protected $chunkCount;
 
-    protected $filenameOrCallback;
+    protected $callback;
 
-    public static function process($filenameOrCallback, Datastore $datastore)
+    public static function process(callable $callback, Datastore $datastore)
     {
         Upload::$datastore = $datastore;
         
         $instance = new static();
-        $instance->filenameOrCallback = $filenameOrCallback;
-
-        if (is_string($filenameOrCallback)) {
-
-            if (file_exists($filenameOrCallback)) {
-
-                throw new \Exception('File already exists');
-
-            } else {
-
-                if (!file_exists(dirname($filenameOrCallback)) || !is_writable(dirname($filenameOrCallback))) {
-
-                    throw new \Exception('Directory does not exist or is not writable');
-
-                }
-
-            }
-        }
+        $instance->callback = $callback;
 
         switch (Request::method()) {
             case 'POST': return $instance->readHandshake();
@@ -49,12 +32,6 @@ class SlicedUpload
     protected function readChunk()
     {
         try {
-
-            Helper::buildRequest();
-
-            print_r($_POST);
-            print_r($_REQUEST);
-            print_r($_PATCH);
 
             $uuid = Request::post('uuid');
             $chunkHash = Request::post('checksum');
@@ -81,24 +58,23 @@ class SlicedUpload
             $upload->append($chunk);
 
             // If last chunk, save upload
-            if (filesize($upload->tempFile) === $upload->fileSize) {
 
-                if (is_callable($this->filenameOrCallback)) {
+            if (filesize($upload->tempFile) < $upload->fileSize) {
 
-                    \Closure::fromCallable($this->filenameOrCallback)->call($this, $upload);
-
-                } else {
-
-                    $upload->store($this->filenameOrCallback);
-
-                }
-
-                return Helper::ok();
+                // If upload is not complete, send ACK with new nonce
+                return Helper::ok([
+                    'nonce' => $upload->nonce,
+                    'size' => $chunk->size,
+                ], 202);            
 
             } else {
 
-                // Else send ACK with new nonce
-                return Helper::ok(['nonce' => $upload->nonce]);
+                call_user_func($this->callback, $upload->tempFile);
+
+                // If upload is not complete, send ACK with new nonce
+                return Helper::ok([
+                    'size' => $chunk->size,
+                ], 200);   
 
             }
             

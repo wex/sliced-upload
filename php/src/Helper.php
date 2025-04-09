@@ -4,14 +4,6 @@ namespace SlicedUpload;
 
 abstract class Helper
 {
-    public static function buildRequest()
-    {
-        global $_PATCH;
-
-        $_PATCH = [];
-        parse_str(file_get_contents('php://input'), $_PATCH);
-    }
-
     public static function ok(array $response = [], $code = 200)
     {
         http_response_code($code);
