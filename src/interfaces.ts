@@ -19,7 +19,6 @@ export interface IUploadRequest {
 }
 
 export interface IUploadResponse {
-    uuid: string;
     nonce: string;
     size: number;
 }
@@ -30,7 +29,6 @@ export interface IStatusRequest {
 }
 
 export interface IStatusResponse {
-    uuid: string;
     nonce: string;
     size: number;
 }

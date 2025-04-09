@@ -288,9 +288,16 @@ export default class SlicedUpload extends EventTarget {
                         try {
 
                             const result: IUploadResponse = JSON.parse(response.text);
-                            this.uuid = result.uuid;
                             this.nonce = result.nonce;
                             this.sentBytes += result.size;
+
+                            this.progress = Math.round(this.sentBytes / this.file!.size * 100);
+
+                            this.emit("upload", {
+                                progress: this.progress,
+                                sentBytes: this.sentBytes,
+                                totalBytes: this.file!.size
+                            });
 
                             return resolve();
 
@@ -302,13 +309,24 @@ export default class SlicedUpload extends EventTarget {
 
                     } else if (response.status === 200) {
 
-                        this.emit("done", {
-                            progress: this.progress,
-                            sentBytes: this.sentBytes,
-                            totalBytes: this.file!.size
-                        })
+                        try {
 
-                        return resolve();
+                            const result: IUploadResponse = JSON.parse(response.text);
+                            this.sentBytes += result.size;
+
+                            this.emit("done", {
+                                progress: this.progress,
+                                sentBytes: this.sentBytes,
+                                totalBytes: this.file!.size
+                            });
+
+                            return resolve();
+
+                        } catch (e) {
+
+                            return reject("JSON parse error");
+
+                        }
 
                     } else {
 

@@ -8,6 +8,7 @@ document.querySelector<HTMLDivElement>('#upload')!.addEventListener('change', (e
 
     slicedUpload.on("upload", (e) => {
       document.querySelector<HTMLDivElement>('#progress')!.innerHTML = `${e.detail.progress}%`;
+      console.log(e.detail);
     });
 
     slicedUpload.on('done', () => {
@@ -18,7 +19,7 @@ document.querySelector<HTMLDivElement>('#upload')!.addEventListener('change', (e
       console.error(e);
     });
 
-    slicedUpload.upload("http://localhost/sliced-upload/test.php").then(() => {
+    slicedUpload.upload("http://localhost/uploader/test.php").then(() => {
       console.log('Uploaded');
     }).catch((e) => {
       console.error(e);
