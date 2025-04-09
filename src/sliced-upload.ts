@@ -1,5 +1,5 @@
 import HttpClient, { HttpClientProgressEventDetail, IHttpClientResponse } from "./httpclient";
-import { IHandshakeRequest, IHandshakeResponse, IUploadRequest, IUploadResponse } from "./interfaces";
+import { ICancelRequest, IHandshakeRequest, IHandshakeResponse, IUploadRequest, IUploadResponse } from "./interfaces";
 
 export type SlicedUploadEventDetail = {
     progress: number;
@@ -112,7 +112,6 @@ export default class SlicedUpload extends EventTarget {
 
     /**
      * Constructor
-     * @todo rework
      */
     constructor(
         file: File,
@@ -124,6 +123,13 @@ export default class SlicedUpload extends EventTarget {
         this.sentBytes = 0;
         this.progress = 0;
         this.controller = controller;
+    }
+
+    /**
+     * Enable request overrides
+     */
+    static enableRequestOverrides(is: boolean = true) {
+        HttpClient.HTTP_METHOD_OVERRIDE = is;
     }
 
     /**
@@ -350,6 +356,50 @@ export default class SlicedUpload extends EventTarget {
 
     }
 
+    private _abort(): Promise<void> {
+
+        return new Promise(async (resolve, reject) => {
+
+            try {   
+
+                const request: ICancelRequest = {
+                    uuid: this.uuid!,
+                    nonce: this.nonce!
+                };
+
+                HttpClient.delete(
+                    this.url!,
+                    this._getFormData(request),
+                    this.headers,
+                ).then((response: IHttpClientResponse) => {
+
+                    if (response.status === 200) {
+
+                        return resolve();
+
+                    } else {
+
+                        return reject(response.text);
+
+                    }
+
+                }).catch((error: string) => {
+
+                    return reject(error);
+
+                });
+                        
+
+            } catch (e) {
+
+                reject(e);
+
+            }
+
+        });
+
+    }
+
     /**
      * Upload
      * @since 2.0.0
@@ -367,6 +417,10 @@ export default class SlicedUpload extends EventTarget {
                 await this._handshake();
 
                 while (this.sentBytes < this.file!.size) {
+
+                    if (this.controller.signal.aborted) {
+                        return reject("Abort");
+                    }
 
                     await this._send();
 
@@ -388,11 +442,27 @@ export default class SlicedUpload extends EventTarget {
      * Abort
      * @since 2.0.0
      */
-    public abort(): void {
+    public abort(): Promise<void> {
 
-        this.emit("abort", {});
-        this.controller.abort();
+        return new Promise(async (resolve, reject) => {
 
+            try {
+
+                this.controller.abort();
+
+                await this._abort();
+
+                this.emit("abort", {});
+
+                return resolve();
+                
+            } catch (e) {
+
+                return reject(e);
+
+            }
+
+        });
     }
 
 

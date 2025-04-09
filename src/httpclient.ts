@@ -24,8 +24,19 @@ const createCustomEvent = <T extends keyof HttpClientEventMap>(
 
 export default class HttpClient extends EventTarget {
 
+    /**
+     * HTTP method override
+     */
+    static HTTP_METHOD_OVERRIDE = false;
+
+    /**
+     * XMLHttpRequest
+     */
     private _request: XMLHttpRequest;
 
+    /**
+     * Constructor
+     */
     constructor(method: HttpClientMethod, url: string, headers: Record<string, string> = {}, timeout: number = 5000) {
 
         super();
@@ -132,49 +143,69 @@ export default class HttpClient extends EventTarget {
 
     }
 
-    public static async post(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000, progressCallback?: (e: HttpClientProgressEventDetail) => void): Promise<IHttpClientResponse> {
+    public static async post(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
 
-        const client = new HttpClient('POST', url, headers, timeout)
+        const client = new HttpClient(
+            'POST',
+            url,
+            headers,
+            timeout
+        );
 
-        client.on('progress', (e) => {
-            progressCallback?.(e.detail);
-        });
-        
         return client.send(payload);
 
     }
 
     public static async patch(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000, progressCallback?: (e: HttpClientProgressEventDetail) => void): Promise<IHttpClientResponse> {
 
-        const client = new HttpClient('PATCH', url, headers, timeout)
+        const client = new HttpClient(
+            HttpClient.HTTP_METHOD_OVERRIDE ? 'POST' : 'PATCH',
+            url,
+            headers,
+            timeout
+        );
 
         client.on('progress', (e) => {
             progressCallback?.(e.detail);
         });
+
+        if (HttpClient.HTTP_METHOD_OVERRIDE) {
+            payload = payload ? payload : new FormData();
+            payload.append('_method', 'PATCH');
+        }
 
         return client.send(payload);
 
     }
 
-    public static async delete(url: string, headers: Record<string, string> = {}, timeout: number = 5000, progressCallback?: (e: HttpClientProgressEventDetail) => void): Promise<IHttpClientResponse> {
+    public static async delete(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
 
-        const client = new HttpClient('DELETE', url, headers, timeout)
+        const client = new HttpClient(
+            HttpClient.HTTP_METHOD_OVERRIDE ? 'POST' : 'DELETE',
+            url,
+            headers,
+            timeout
+        );
 
-        client.on('progress', (e) => {
-            progressCallback?.(e.detail);
-        });
+        if (HttpClient.HTTP_METHOD_OVERRIDE) {
+            payload = payload ? payload : new FormData();
+            payload.append('_method', 'DELETE');
+        }
 
-        return client.send();
+        return client.send(payload);
 
     }
 
-    public static async head(url: string, headers: Record<string, string> = {}, timeout: number = 5000, progressCallback?: (e: HttpClientProgressEventDetail) => void): Promise<IHttpClientResponse> {
+    public static async head(url: string, query: Record<string, string> = {}, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
 
-        const client = new HttpClient('HEAD', url, headers, timeout)
-
-        client.on('progress', (e) => {
-            progressCallback?.(e.detail);
-        });
+        const queryString = new URLSearchParams(query).toString();
+        
+        const client = new HttpClient(
+            'HEAD',
+            `${url}${url.includes('?') ? '&' : '?'}${queryString}`,
+            headers,
+            timeout
+        );
 
         return client.send();
 
