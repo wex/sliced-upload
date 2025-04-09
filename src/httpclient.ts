@@ -43,7 +43,7 @@ export default class HttpClient extends EventTarget {
 
         this._request = new XMLHttpRequest();
 
-        this._request.open(method, url);
+        this._request.open(method, url, true);
 
         for (const key in headers) {
             this._request.setRequestHeader(key, headers[key]);
