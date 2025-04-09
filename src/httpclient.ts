@@ -7,6 +7,11 @@ export type HttpClientProgressEventDetail = {
     total: number;
 }
 
+export interface IHttpClientResponse {
+    status: number;
+    text: string;
+}
+
 export default class HttpClient extends EventTarget {
 
     private _request: XMLHttpRequest;
@@ -43,7 +48,7 @@ export default class HttpClient extends EventTarget {
         this.removeEventListener(type, listener as EventListener, options);
     }
 
-    public async send(payload: FormData | null = null): Promise<{ status: number, text: string }> {
+    public async send(payload: FormData | null = null): Promise<IHttpClientResponse> {
 
         return new Promise((resolve, reject) => {
 
@@ -102,25 +107,25 @@ export default class HttpClient extends EventTarget {
 
     }
 
-    public static async post(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000): Promise<{ status: number, text: string }> {
+    public static async post(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
 
         return new HttpClient('POST', url, headers, timeout).send(payload);
 
     }
 
-    public static async patch(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000): Promise<{ status: number, text: string }> {
+    public static async patch(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
 
         return new HttpClient('PATCH', url, headers, timeout).send(payload);
 
     }
 
-    public static async delete(url: string, headers: Record<string, string> = {}, timeout: number = 5000): Promise<{ status: number, text: string }> {
+    public static async delete(url: string, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
 
         return new HttpClient('DELETE', url, headers, timeout).send();
 
     }
 
-    public static async head(url: string, headers: Record<string, string> = {}, timeout: number = 5000): Promise<{ status: number, text: string }> {
+    public static async head(url: string, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
 
         return new HttpClient('HEAD', url, headers, timeout).send();
 
