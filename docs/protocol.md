@@ -19,9 +19,9 @@
   - `checksum`: SHA256 of chunk sent (?)
 - Server responds `202 Accepted` with:
   - `nonce`: Unique identifier per operation
-  - `Content-Range`: Bytes received (bytes 0-X)
+  - `size`: Bytes received
 
-- When all bytes are recivied server responds `200 OK`
+- When all bytes are receivied server responds `200 OK`
 
 ## Cancel upload
 
