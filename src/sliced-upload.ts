@@ -197,7 +197,7 @@ export default class SlicedUpload extends EventTarget {
 
                     if (response.status !== 201) {
                         
-                        return reject(response.text);
+                        return reject(new Error(`HTTP request error: ${response.status} ${response.text}`));
 
                     } else {
 
@@ -210,9 +210,9 @@ export default class SlicedUpload extends EventTarget {
 
                             return resolve();
 
-                        } catch (e) {
+                        } catch (e: any) {
 
-                            return reject("JSON parse error");
+                            return reject(new Error(`JSON parse error: ${e.message}`));
 
                         }
 
@@ -220,13 +220,13 @@ export default class SlicedUpload extends EventTarget {
 
                 }).catch((error: string) => {
 
-                    return reject(error);
+                    return reject(new Error(`HTTP request error: ${error}`));
 
                 });
 
-            } catch (e) {
+            } catch (e: any) {
 
-                return reject(e);
+                return reject(new Error(`Handshake error: ${e.message}`));
 
             }
 
@@ -248,9 +248,9 @@ export default class SlicedUpload extends EventTarget {
 
                 return resolve();
 
-            } catch (e) {
+            } catch (e: any) {
 
-                return reject(e);
+                return reject(new Error(`File.slice error: ${e.message}`));
 
             }
 
@@ -311,9 +311,9 @@ export default class SlicedUpload extends EventTarget {
 
                             return resolve();
 
-                        } catch (e) {
+                        } catch (e: any) {
 
-                            return reject("JSON parse error");
+                            return reject(new Error(`JSON parse error: ${e.message}`));
 
                         }
 
@@ -332,27 +332,27 @@ export default class SlicedUpload extends EventTarget {
 
                             return resolve();
 
-                        } catch (e) {
+                        } catch (e: any) {
 
-                            return reject("JSON parse error");
+                            return reject(new Error(`JSON parse error: ${e.message}`));
 
                         }
 
                     } else {
 
-                        return reject(response.text);
+                        return reject(new Error(`HTTP request error: ${response.status} ${response.text}`));
 
                     }
 
                 }).catch((error: string) => {
 
-                    return reject(error);
+                    return reject(new Error(`HTTP request error: ${error}`));
 
                 });
 
-            } catch (e) {
+            } catch (e: any) {
 
-                return reject(e);
+                return reject(new Error(`Send chunk error: ${e.message}`));
 
             }
 
@@ -383,20 +383,20 @@ export default class SlicedUpload extends EventTarget {
 
                     } else {
 
-                        return reject(response.text);
+                        return reject(new Error(`HTTP request error: ${response.status} ${response.text}`));
 
                     }
 
                 }).catch((error: string) => {
 
-                    return reject(error);
+                    return reject(new Error(`HTTP request error: ${error}`));
 
                 });
                         
 
-            } catch (e) {
+            } catch (e: any) {
 
-                reject(e);
+                return reject(new Error(`Abort error: ${e.message}`));
 
             }
 
@@ -423,7 +423,7 @@ export default class SlicedUpload extends EventTarget {
                 while (this.sentBytes < this.file.size) {
 
                     if (this.controller.signal.aborted) {
-                        return reject("Abort");
+                        return reject(new Error("Aborted"));
                     }
 
                     await this._send();
@@ -432,9 +432,9 @@ export default class SlicedUpload extends EventTarget {
 
                 return resolve();
 
-            } catch (e) {
+            } catch (e: any) {
 
-                return reject(e);
+                return reject(new Error(`Upload error: ${e.message}`));
 
             }
 
@@ -460,14 +460,13 @@ export default class SlicedUpload extends EventTarget {
 
                 return resolve();
                 
-            } catch (e) {
+            } catch (e: any) {
 
-                return reject(e);
+                return reject(new Error(`Abort error: ${e.message}`));
 
             }
 
         });
     }
-
 
 }
