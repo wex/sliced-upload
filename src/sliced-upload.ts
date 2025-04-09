@@ -101,11 +101,6 @@ export default class SlicedUpload extends EventTarget {
     private controller: AbortController;
 
     /**
-     * File hash
-     */
-    private fileHash?: string;
-
-    /**
      * Nonce
      */
     private nonce?: string;
@@ -178,7 +173,7 @@ export default class SlicedUpload extends EventTarget {
             try {
 
                 const request: IHandshakeRequest = {
-                    checksum: this.fileHash!,
+                    checksum: await this._getFileHash(this.file!),
                     name: this.file!.name,
                     size: this.file!.size,
                     type: this.file!.type
@@ -266,6 +261,7 @@ export default class SlicedUpload extends EventTarget {
                 await this._process();
 
                 const request: IUploadRequest = {
+                    uuid: this.uuid!,
                     chunk: this.chunk!,
                     nonce: this.nonce!,
                     checksum: await this._getChunkHash(this.chunk!)

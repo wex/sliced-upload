@@ -18,7 +18,7 @@ document.querySelector<HTMLDivElement>('#upload')!.addEventListener('change', (e
       console.error(e);
     });
 
-    slicedUpload.upload("http://localhost/uploader/test.php").then(() => {
+    slicedUpload.upload("http://localhost/sliced-upload/test.php").then(() => {
       console.log('Uploaded');
     }).catch((e) => {
       console.error(e);

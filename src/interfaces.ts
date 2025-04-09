@@ -12,6 +12,7 @@ export interface IHandshakeResponse {
 }
 
 export interface IUploadRequest {
+    uuid: string;
     chunk: Blob;
     nonce: string;
     checksum: string;
