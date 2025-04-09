@@ -2,6 +2,18 @@
 
 JS-library to overcome limitations of stateless servers and upload limits.
 
+## TODO
+
+- Change methods
+  - Use `POST` at handshake
+  - Use `PATCH` at upload
+  - Use `HEAD` to get status
+  - Use `DELETE` to cancel
+- Use `Content-Range` header
+- Use `HTTP 206 Partial Content` and `HTTP 416 Range Not Satisfiable`
+- Drop `index`
+- Allow pause/continue with `HEAD`
+
 ## How it works?
 
 1. New `SlicedUpload` is created with given `File` and `upload()` is used to initialize the upload.
