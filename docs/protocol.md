@@ -2,6 +2,8 @@
 
 ## Uploading
 
+![Basic operation](protocol.drawio.png)
+
 - Client sends `POST` to server with:
   - `checksum`: SHA256-hash of full file
   - `name`: Filename
