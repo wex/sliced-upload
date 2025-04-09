@@ -4,6 +4,11 @@ namespace SlicedUpload;
 
 abstract class Request
 {
+    public static function method()
+    {
+        return strtoupper($_SERVER['REQUEST_METHOD']);
+    }
+
     public static function post($key, $required = true, $default = null)
     {
         if (!isset($_POST[$key])) {

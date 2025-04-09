@@ -8,17 +8,15 @@ class Upload
 {
     public static $datastore = null;
 
-    public $identifier;
+    public $uuid;
     public $fileHash;
-    public $chunkCount;
     public $fileName;
     public $fileSize;
     public $fileType;
     public $tempFile;
     public $nonce;
-    public $lastChunk;
 
-    public function __construct($identifier, $fileHash, $tempFile, $chunkCount, $fileName, $fileSize, $fileType, $nonce, $lastChunk)
+    public function __construct($uuid, $fileHash, $tempFile, $fileName, $fileSize, $fileType, $nonce)
     {
         if (null === static::$datastore) {
 
@@ -26,29 +24,25 @@ class Upload
 
         }
 
-        $this->identifier = $identifier;
+        $this->uuid     = $uuid;
         $this->fileHash = $fileHash;
         $this->tempFile = $tempFile;
-        $this->chunkCount = $chunkCount;
         $this->fileName = $fileName;
         $this->fileSize = $fileSize;
         $this->fileType = $fileType;
-        $this->nonce = $nonce;
-        $this->lastChunk = $lastChunk;
+        $this->nonce    = $nonce;
     }
 
-    public static function create($hash, $chunkCount, $fileName, $fileSize, $fileType)
+    public static function create($fileHash, $fileName, $fileSize, $fileType)
     {
         $instance = new static(
             Helper::uuid(),
-            $hash,
+            $fileHash,
             Helper::getTempFile(),
-            $chunkCount,
             $fileName,
             $fileSize,
             $fileType,
             Helper::uuid(),
-            -1
         );
 
         if (!$instance->save()) {
@@ -62,26 +56,30 @@ class Upload
         return $instance;
     }
 
-    public static function find($identifier, $nonce)
+    public static function find($uuid, $nonce)
     {
         $row = static::$datastore->findByKeys(
             '__uploads',
             [
-                'uuid' => $identifier,
+                'uuid' => $uuid,
                 'nonce' => $nonce
             ]
         );
+
+        if (empty($row)) {
+
+            throw new \Exception('Upload not found');
+
+        }
 
         return new static(
             $row['uuid'],
             $row['file_hash'],
             $row['temp_file'],
-            $row['chunk_count'],
             $row['file_name'],
             $row['file_size'],
             $row['file_type'],
-            $row['nonce'],
-            $row['last_chunk']
+            $row['nonce']
         );
     }
 
@@ -90,36 +88,22 @@ class Upload
         return static::$datastore->insertOrUpdate(
             '__uploads',
             [
-                'uuid'          => $this->identifier,
+                'uuid'          => $this->uuid,
                 'temp_file'     => $this->tempFile,
                 'file_hash'     => $this->fileHash,
-                'chunk_count'   => $this->chunkCount,
                 'file_name'     => $this->fileName,
                 'file_size'     => $this->fileSize,
                 'file_type'     => $this->fileType,
                 'nonce'         => $this->nonce,
-                'last_chunk'    => $this->lastChunk,
             ],
             [
-                'uuid' => $this->identifier
+                'uuid' => $this->uuid
             ]
         );
     }
 
     public function verifyChunk(Chunk $chunk)
     {
-        if (intval($chunk->index) !== intval($this->lastChunk + 1)) {
-
-            return false;
-
-        }
-
-        if ($chunk->identifier !== $this->identifier) {
-
-            return false;
-
-        }
-
         return $chunk->verify();
     }
 
@@ -131,7 +115,6 @@ class Upload
             FILE_APPEND
         );
 
-        $this->lastChunk = $chunk->index;
         $this->nonce = Helper::uuid();
 
         if (!$this->save()) {
@@ -162,7 +145,7 @@ class Upload
         static::$datastore->delete(
             '__uploads',
             [
-                'uuid' => $this->identifier
+                'uuid' => $this->uuid
             ]
         );
 

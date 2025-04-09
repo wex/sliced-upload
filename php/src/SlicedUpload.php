@@ -37,14 +37,12 @@ class SlicedUpload
             }
         }
 
-        if (isset($_FILES['chunk']) && $_FILES['chunk']) {
-
-            $instance->readChunk();
-
-        } else {
-
-            $instance->readHandshake();
-
+        switch (Request::method()) {
+            case 'POST': return $instance->readHandshake();
+            case 'PATCH': return $instance->readChunk();
+            #case 'HEAD': return $instance->readStatus();
+            #case 'DELETE': return $instance->readCancel();
+            default: return Helper::error("Invalid method", 500);
         }
     }
 
@@ -52,33 +50,38 @@ class SlicedUpload
     {
         try {
 
-            $uploadHash = Request::post('sliced_upload');
-            $chunkIndex = Request::post('index');
+            Helper::buildRequest();
+
+            print_r($_POST);
+            print_r($_REQUEST);
+            print_r($_PATCH);
+
+            $uuid = Request::post('uuid');
+            $chunkHash = Request::post('checksum');
             $nonce = Request::post('nonce');
             $chunk = Request::file('chunk');
 
             // Create chunk
             $chunk = Chunk::create(
-                $uploadHash,
-                $chunkIndex,
+                $chunkHash,
                 $chunk
             );
-            
-            // Find upload
-            $upload = Upload::find($uploadHash, $nonce);
 
             // Verify chunk
-            if (!$upload->verifyChunk($chunk)) {
+            if (!$chunk->verify()) {
 
                 throw new \Exception('Invalid chunk');
 
             }
 
+            // Find upload
+            $upload = Upload::find($uuid, $nonce);
+
             // Append chunk to upload
             $upload->append($chunk);
 
             // If last chunk, save upload
-            if (intval($chunkIndex) === intval($upload->chunkCount - 1)) {
+            if (filesize($upload->tempFile) === $upload->fileSize) {
 
                 if (is_callable($this->filenameOrCallback)) {
 
@@ -109,23 +112,21 @@ class SlicedUpload
     {
         try {
 
-            $fileHash = Request::post('sliced_upload');
-            $chunkCount = Request::post('chunks');
-            $fileName = Request::post('filename');
-            $fileSize = Request::post('filesize');
-            $fileType = Request::post('filetype');
+            $fileHash = Request::post('checksum');
+            $fileName = Request::post('name');
+            $fileSize = Request::post('size');
+            $fileType = Request::post('type');
 
             // Create upload
             $upload = Upload::create(
                 $fileHash, 
-                $chunkCount, 
                 $fileName, 
                 $fileSize, 
                 $fileType
             );
 
             // ACK with upload UUID and nonce
-            return Helper::ok(['uuid' => $upload->identifier, 'nonce' => $upload->nonce]);
+            return Helper::ok(['uuid' => $upload->uuid, 'nonce' => $upload->nonce, 'max_size' => Helper::getMaxSize()], 201);
 
         } catch (\Exception $e) {
 
