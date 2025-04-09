@@ -126,28 +126,20 @@ class Upload
         return true;
     }
 
-    public function store($filename)
+    public function destroy()
     {
-        if (!rename($this->tempFile, $filename)) {
-
-            throw new \Exception('Failed to store upload');
-
-        }
-
-        $localHash = hash_file('sha256', $filename);
-
-        if ($localHash !== $this->fileHash) {
-
-            throw new \Exception('Failed to verify upload');
-
-        }
-
         static::$datastore->delete(
             '__uploads',
             [
                 'uuid' => $this->uuid
             ]
         );
+     
+        if (file_exists($this->tempFile)) {
+
+            unlink($this->tempFile);
+
+        }
 
         return true;
     }

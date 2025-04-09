@@ -23,8 +23,8 @@ class SlicedUpload
         switch (Request::method()) {
             case 'POST': return $instance->readHandshake();
             case 'PATCH': return $instance->readChunk();
+            case 'DELETE': return $instance->readCancel();
             #case 'HEAD': return $instance->readStatus();
-            #case 'DELETE': return $instance->readCancel();
             default: return Helper::error("Invalid method", 500);
         }
     }
@@ -103,6 +103,29 @@ class SlicedUpload
 
             // ACK with upload UUID and nonce
             return Helper::ok(['uuid' => $upload->uuid, 'nonce' => $upload->nonce, 'max_size' => Helper::getMaxSize()], 201);
+
+        } catch (\Exception $e) {
+
+            return Helper::error($e->getMessage());
+
+        }
+    }
+
+    protected function readCancel()
+    {
+        try {
+
+            $uuid = Request::post('uuid');
+            $nonce = Request::post('nonce');
+
+            // Find upload
+            $upload = Upload::find($uuid, $nonce);
+            
+            // Delete upload
+            $upload->destroy();
+
+            // ACK
+            return Helper::ok([], 200);
 
         } catch (\Exception $e) {
 
