@@ -56,6 +56,30 @@ class Upload
         return $instance;
     }
 
+    public static function fetch($uuid)
+    {
+        $row = static::$datastore->findByKeys(
+            '__uploads',
+            ['uuid' => $uuid]
+        );
+
+        if (empty($row)) {
+
+            throw new \Exception('Upload not found');
+
+        }
+
+        return new static(
+            $row['uuid'],
+            $row['file_hash'],
+            $row['temp_file'],
+            $row['file_name'],
+            $row['file_size'],
+            $row['file_type'],
+            $row['nonce']
+        );
+    }
+
     public static function find($uuid, $nonce)
     {
         $row = static::$datastore->findByKeys(
@@ -114,6 +138,8 @@ class Upload
             file_get_contents($chunk->chunk),
             FILE_APPEND
         );
+
+        @unlink($chunk->chunk);
 
         $this->nonce = Helper::uuid();
 

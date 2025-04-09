@@ -27,13 +27,25 @@ abstract class Helper
     {
         $maxSize = ini_get('upload_max_filesize');
 
-        if (!is_numeric($maxSize)) {
+        // Convert max size to bytes
+        if (preg_match('/^([\d\.]+)([KMG]?)$/', $maxSize, $matches)) {
 
-            return 1024 * 1024 * 1;
+            $maxSize = floatval($matches[1]);
+            switch (strtoupper($matches[2])) {
+                case 'K':
+                    $maxSize *= 1024;
+                    break;
+                case 'M':
+                    $maxSize *= 1024 * 1024;
+                    break;
+                case 'G':
+                    $maxSize *= 1024 * 1024 * 1024;
+                    break;
+            }
 
         }
 
-        return $maxSize;
+        return is_numeric($maxSize) ? ceil($maxSize) : 1024 * 1024 * 1;
     }
 
     public static function getTempDir()

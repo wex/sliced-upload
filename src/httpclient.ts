@@ -37,7 +37,7 @@ export default class HttpClient extends EventTarget {
     /**
      * Constructor
      */
-    constructor(method: HttpClientMethod, url: string, headers: Record<string, string> = {}, timeout: number = 5000) {
+    constructor(method: HttpClientMethod, url: string, headers: Record<string, string> = {}, timeout: number = 5000, controller: AbortController | null = null) {
 
         super();
 
@@ -51,6 +51,9 @@ export default class HttpClient extends EventTarget {
 
         this._request.timeout = timeout;
 
+        controller?.signal.addEventListener('abort', () => {
+            this._request.abort();
+        });
     }
 
     /**
@@ -143,26 +146,41 @@ export default class HttpClient extends EventTarget {
 
     }
 
-    public static async post(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
+    public static async post(
+        url: string,
+        payload: FormData | null = null,
+        headers: Record<string, string> = {},
+        timeout: number = 5000,
+        controller: AbortController | null = null
+    ): Promise<IHttpClientResponse> {
 
         const client = new HttpClient(
             'POST',
             url,
             headers,
-            timeout
+            timeout,
+            controller
         );
 
         return client.send(payload);
 
     }
 
-    public static async patch(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000, progressCallback?: (e: HttpClientProgressEventDetail) => void): Promise<IHttpClientResponse> {
+    public static async patch(
+        url: string,
+        payload: FormData | null = null,
+        headers: Record<string, string> = {},
+        timeout: number = 5000,
+        controller: AbortController | null = null,
+        progressCallback?: (e: HttpClientProgressEventDetail) => void,
+    ): Promise<IHttpClientResponse> {
 
         const client = new HttpClient(
             HttpClient.HTTP_METHOD_OVERRIDE ? 'POST' : 'PATCH',
             url,
             headers,
-            timeout
+            timeout,
+            controller
         );
 
         client.on('progress', (e) => {
@@ -178,13 +196,20 @@ export default class HttpClient extends EventTarget {
 
     }
 
-    public static async delete(url: string, payload: FormData | null = null, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
+    public static async delete(
+        url: string,
+        payload: FormData | null = null,
+        headers: Record<string, string> = {},
+        timeout: number = 5000,
+        controller: AbortController | null = null
+    ): Promise<IHttpClientResponse> {
 
         const client = new HttpClient(
             HttpClient.HTTP_METHOD_OVERRIDE ? 'POST' : 'DELETE',
             url,
             headers,
-            timeout
+            timeout,
+            controller
         );
 
         if (HttpClient.HTTP_METHOD_OVERRIDE) {
@@ -196,7 +221,13 @@ export default class HttpClient extends EventTarget {
 
     }
 
-    public static async head(url: string, query: Record<string, string> = {}, headers: Record<string, string> = {}, timeout: number = 5000): Promise<IHttpClientResponse> {
+    public static async head(
+        url: string,
+        query: Record<string, string> = {},
+        headers: Record<string, string> = {},
+        timeout: number = 5000,
+        controller: AbortController | null = null
+    ): Promise<IHttpClientResponse> {
 
         const queryString = new URLSearchParams(query).toString();
         
@@ -204,7 +235,8 @@ export default class HttpClient extends EventTarget {
             'HEAD',
             `${url}${url.includes('?') ? '&' : '?'}${queryString}`,
             headers,
-            timeout
+            timeout,
+            controller
         );
 
         return client.send();

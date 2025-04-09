@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SlicedUpload Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .progress-container {
+            margin-top: 20px;
+        }
+        .progress-bar {
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .buttons {
+            margin-top: 15px;
+        }
+        button {
+            padding: 8px 12px;
+            margin-right: 10px;
+        }
+        #status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        .info {
+            background-color: #d9edf7;
+            color: #31708f;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>SlicedUpload Example</h1>
+    
+    <div class="container">
+        <h2>Upload a File</h2>
+        <p>Select a file to upload it in slices to the server:</p>
+        
+        <input type="file" id="fileInput">
+        
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div>
+                <span id="progressText">0%</span> - 
+                <span id="bytesText">0/0 bytes</span>
+            </div>
+        </div>
+        
+        <div class="buttons">
+            <button id="uploadBtn">Upload</button>
+            <button id="abortBtn" disabled>Abort</button>
+            <button id="enableOverrideBtn">Enable HTTP Method Override</button>
+        </div>
+        
+        <div id="status" class="info">Ready to upload</div>
+    </div>
+    
+    <!-- Include the SlicedUpload library -->
+    <script src="../dist/sliced-upload.min.js"></script>
+    
+    <script>
+        // DOM elements
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const abortBtn = document.getElementById('abortBtn');
+        const enableOverrideBtn = document.getElementById('enableOverrideBtn');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const bytesText = document.getElementById('bytesText');
+        const statusEl = document.getElementById('status');
+        
+        // Current uploader instance
+        let uploader = null;
+        let abortController = null;
+        
+        // Update status with appropriate styling
+        function updateStatus(message, type = 'info') {
+            statusEl.textContent = message;
+            statusEl.className = type;
+        }
+        
+        // Format bytes to human-readable format
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+        
+        // Enable HTTP method override (for servers that don't support PATCH/DELETE)
+        enableOverrideBtn.addEventListener('click', function() {
+            SlicedUpload.enableRequestOverrides(true);
+            updateStatus('HTTP Method Override enabled. POST will be used with _method parameter.', 'info');
+            this.disabled = true;
+        });
+        
+        // Handle file upload
+        uploadBtn.addEventListener('click', function() {
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                updateStatus('Please select a file first.', 'error');
+                return;
+            }
+            
+            // Create abort controller
+            abortController = new AbortController();
+            
+            // Initialize SlicedUpload with the selected file
+            uploader = new SlicedUpload(file, abortController);
+            
+            // Set up event listeners
+            uploader.on('upload', function(event) {
+                const { progress, sentBytes, totalBytes } = event.detail;
+                
+                // Update progress UI
+                progressFill.style.width = progress + '%';
+                progressText.textContent = progress + '%';
+                bytesText.textContent = `${formatBytes(sentBytes)} / ${formatBytes(totalBytes)}`;
+                
+                updateStatus('Uploading...', 'info');
+            });
+            
+            uploader.on('done', function(event) {
+                const { sentBytes, totalBytes } = event.detail;
+                
+                // Update progress UI to complete
+                progressFill.style.width = '100%';
+                progressText.textContent = '100%';
+                bytesText.textContent = `${formatBytes(sentBytes)} / ${formatBytes(totalBytes)}`;
+                
+                updateStatus('Upload completed successfully!', 'success');
+                
+                // Reset buttons
+                uploadBtn.disabled = false;
+                abortBtn.disabled = true;
+            });
+            
+            uploader.on('error', function(event) {
+                updateStatus('Upload error: ' + event.detail.message, 'error');
+                
+                // Reset buttons
+                uploadBtn.disabled = false;
+                abortBtn.disabled = true;
+            });
+            
+            uploader.on('abort', function() {
+                updateStatus('Upload aborted by user.', 'info');
+                
+                // Reset buttons
+                uploadBtn.disabled = false;
+                abortBtn.disabled = true;
+            });
+            
+            // Start upload
+            updateStatus('Starting upload...', 'info');
+            
+            // Define upload parameters (adjust server URL as needed)
+            const uploadUrl = 'http://localhost/uploader/test.php';
+            const params = {
+                // Optional parameters to send with the request
+                // token: 'your-auth-token'
+            };
+            const headers = {
+                // Optional headers
+                // 'X-Custom-Header': 'value'
+            };
+            
+            // Disable upload button and enable abort button
+            uploadBtn.disabled = true;
+            abortBtn.disabled = false;
+            
+            // Start the upload
+            uploader.upload(uploadUrl, params, headers)
+                .catch(error => {
+                    updateStatus('Upload failed: ' + error.message, 'error');
+                    
+                    // Reset buttons
+                    uploadBtn.disabled = false;
+                    abortBtn.disabled = true;
+                });
+        });
+        
+        // Handle upload abort
+        abortBtn.addEventListener('click', function() {
+            if (uploader) {
+                updateStatus('Aborting upload...', 'info');
+                
+                uploader.abort()
+                    .catch(error => {
+                        updateStatus('Error while aborting: ' + error.message, 'error');
+                    });
+            }
+        });
+    </script>
+    
+    <div class="container" style="margin-top: 20px;">
+        <h2>Implementation Details</h2>
+        <p>This example demonstrates:</p>
+        <ul>
+            <li>Initializing SlicedUpload with a file</li>
+            <li>Setting up event listeners for progress, completion, and errors</li>
+            <li>Starting and aborting uploads</li>
+            <li>Configuring HTTP method overrides</li>
+        </ul>
+        
+        <p>The protocol flow is:</p>
+        <ol>
+            <li>Initial handshake to set up upload (POST request)</li>
+            <li>Multiple chunk uploads (PATCH requests)</li>
+            <li>Optional cancellation (DELETE request)</li>
+        </ol>
+        
+        <p>For servers that don't support PATCH or DELETE (like some PHP versions),
+        you can enable HTTP method override which uses POST with a _method parameter.</p>
+    </div>
+</body>
+</html>

@@ -35,7 +35,6 @@ export interface IStatusResponse {
 
 export interface ICancelRequest {
     uuid: string;
-    nonce: string;
 }
 
 export interface IError {

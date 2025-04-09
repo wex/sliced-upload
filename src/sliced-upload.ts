@@ -192,7 +192,9 @@ export default class SlicedUpload extends EventTarget {
                 HttpClient.post(
                     this.url,
                     this._getFormData(request),
-                    this.headers
+                    this.headers,
+                    10000,
+                    this.controller
                 ).then((response: IHttpClientResponse) => {
 
                     if (response.status !== 201) {
@@ -282,6 +284,7 @@ export default class SlicedUpload extends EventTarget {
                     this._getFormData(request),
                     this.headers,
                     60000,
+                    this.controller,
                     (e: HttpClientProgressEventDetail) => {
                         this.progress = Math.round((this.sentBytes + e.loaded) / this.file.size * 100);
 
@@ -367,14 +370,13 @@ export default class SlicedUpload extends EventTarget {
             try {   
 
                 const request: ICancelRequest = {
-                    uuid: this.uuid,
-                    nonce: this.nonce
+                    uuid: this.uuid
                 };
 
                 HttpClient.delete(
                     this.url,
                     this._getFormData(request),
-                    this.headers,
+                    this.headers
                 ).then((response: IHttpClientResponse) => {
 
                     if (response.status === 200) {
@@ -453,9 +455,7 @@ export default class SlicedUpload extends EventTarget {
             try {
 
                 this.controller.abort();
-
-                await this._abort();
-
+                await this._abort();                
                 this.emit("abort", {});
 
                 return resolve();

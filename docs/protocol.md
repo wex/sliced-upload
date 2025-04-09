@@ -29,7 +29,6 @@
 
 - Client sends `DELETE` to server with:
   - `uuid`: Unique ID for upload
-  - `nonce`: Nonce given in previous operation
 - Server responds `200 OK` (and deletes temporary files)
 
 ## Get current status

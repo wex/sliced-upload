@@ -15,12 +15,12 @@ require_once __DIR__ . '/php/vendor/autoload.php';
 
 if (function_exists('request_parse_body')) {
     // Use request_parse_body if PHP 8.4+
-    if (in_array($_SERVER['REQUEST_METHOD'], ['PATCH', 'PUT'])) {
+    if (in_array($_SERVER['REQUEST_METHOD'], ['PATCH', 'PUT', 'DELETE'])) {
         [$_POST, $_FILES] = request_parse_body();
     }
 } else {
     // Use _method to override request method
-    if (isset($_POST['_method']) && in_array($_POST['_method'], ['PATCH', 'PUT'])) {
+    if (isset($_POST['_method']) && in_array($_POST['_method'], ['PATCH', 'PUT', 'DELETE'])) {
         $_SERVER['REQUEST_METHOD'] = $_POST['_method'];
     }
 }

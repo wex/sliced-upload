@@ -116,10 +116,9 @@ class SlicedUpload
         try {
 
             $uuid = Request::post('uuid');
-            $nonce = Request::post('nonce');
 
-            // Find upload
-            $upload = Upload::find($uuid, $nonce);
+            // Fetch upload
+            $upload = Upload::fetch($uuid);
             
             // Delete upload
             $upload->destroy();
