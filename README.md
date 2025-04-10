@@ -14,17 +14,10 @@ JS-library to overcome limitations of stateless servers and upload limits.
 
 See [docs/protocol.md](docs/protocol.md) for more information about protocol itself.
 
-## What about server side?
-
-There is a prototype implementation with PHP under `php/` - upload state is kept with `MySQL`.
-
-**During test implementation I realized that PHP does not support `PATCH`/`PUT` methods out-of-the-box. There is an example for PHP 8.4 in `test.php` and for older versions (or other languages with same challenges) you can use `SlicedUpload.enableRequestOverrides(true);` to use `POST` to handle the requests and inject `_method` = `POST` into payload.**
-
-### **This is not the final implementation! Please wait for server libraries!**
-
 ## Server libraries
 
-TBA!
+- PHP
+  - https://github.com/wex/sliced-upload-php
 
 ## License
 
