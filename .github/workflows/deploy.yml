@@ -22,9 +22,6 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Create zip
-        run: zip dist.zip dist/*.js
-
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
