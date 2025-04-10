@@ -24,7 +24,7 @@
                 slicedUpload.addEventListener('done', () => {
                     document.querySelector('#progress').innerHTML = `Upload completed`;
                 });
-                slicedUpload.upload('http://localhost/uploader/test.php').then(() => {
+                slicedUpload.upload('http://localhost/sliced-upload-php/test.php').then(() => {
                     console.log('Uploaded');
                 }).catch((e) => {
                     console.error(e);
