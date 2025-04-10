@@ -44,7 +44,10 @@
 ## Errors
 
 - Server cannot locate `uuid`: `404 Not Found`
+- Invalid payload: `400 Bad Request`
 - Verifying `nonce` fails: `400 Bad Request`
+- Chunk upload failed: `415 Unsupported Media Type`
+- Chunk is invalid: `422 Unprocessable Content`
 - Chunk `checksum` does not match: `422 Unprocessable Content`
 - File `checksum` does not match: `422 Unprocessable Content`
 - Any other error: `500 Internal Server Error`
